@@ -228,25 +228,25 @@ class Scanner(object):
                 self.res = {}
 
             if req.status_code != 200:
-                logger.debug("*****************START ERROR*****************")
+                logger.error("*****************START ERROR*****************")
                 if private:
-                    logger.debug("JSON    : **JSON request hidden**")
+                    logger.error("JSON    : **JSON request hidden**")
                 else:
-                    logger.debug("JSON    :")
-                    logger.debug(payload)
-                    logger.debug(files)
+                    logger.error("JSON    :")
+                    logger.error(payload)
+                    logger.error(files)
 
-                logger.debug("HEADERS :")
-                logger.debug(headers)
-                logger.debug("URL     : %s " % url)
-                logger.debug("METHOD  : %s" % method)
-                logger.debug("RESPONSE: %d" % req.status_code)
-                logger.debug("\n")
-                self.pretty_print()
-                logger.debug("******************END ERROR******************")
+                logger.error("HEADERS :")
+                logger.error(headers)
+                logger.error("URL     : %s " % url)
+                logger.error("METHOD  : %s" % method)
+                logger.error("RESPONSE: %d" % req.status_code)
+                logger.error("\n")
+                logger.error(json.dumps(self.res, sort_keys=False, indent=2))
+                logger.error("******************END ERROR******************")
 
             if self.debug:
-                # This could also contain "pretty_print()" but it makes a lot of
+`                # This could also contain "pretty_print()" but it makes a lot of
                 # noise if enabled for the entire scan.
                 logger.debug("RESPONSE CODE: %d" % req.status_code)
 
@@ -750,8 +750,8 @@ class Scanner(object):
 
         self.scan_uuid = self.res["scan_uuid"]
 
-        logger.debug("Scan name : %s" % self.scan_name)
-        logger.debug("Scan UUID : %s" % self.scan_uuid)
+        logger.info("Scan name : %s" % self.scan_name)
+        logger.info("Scan UUID : %s" % self.scan_uuid)
 
 ################################################################################
     def _scan_status(self):
@@ -787,7 +787,7 @@ class Scanner(object):
                     # actual running time, however this is just a rough metric
                     # that's more to get a feel of how long something is taking,
                     # it's not meant for precision.
-                    logger.debug("\nComplete! Run time: %d seconds." % counter)
+                    logger.info("\nComplete! Run time: %d seconds." % counter)
 
 
 ################################################################################
@@ -947,7 +947,7 @@ class Scanner(object):
                                         extra=data)
 
         file_id = self.res['file']
-        logger.debug('Download for file id '+str(self.res['file'])+'.')
+        logger.info('Download for file id '+str(self.res['file'])+'.')
         while running:
             time.sleep(2)
             counter += 2
@@ -983,11 +983,11 @@ class Scanner(object):
 
         for host in self.res["hosts"]:
             if self.format_start:
-                logger.debug(self.format_start)
+                logger.info(self.format_start)
 
-            logger.debug("----------------------------------------")
-            logger.debug("Target    : %s" % host["hostname"])
-            logger.debug("----------------------------------------\n")
+            logger.info("----------------------------------------")
+            logger.info("Target    : %s" % host["hostname"])
+            logger.info("----------------------------------------\n")
 
             for plugin in self.plugins.keys():
                 self.action("scans/" + str(self.scan_id) + "/hosts/" +
@@ -997,17 +997,17 @@ class Scanner(object):
                 # If not defined, the plugin did not fire for the host
                 if self.res["outputs"]:
 
-                    logger.debug("Plugin Name   : " + self.plugins[plugin]["name"])
-                    logger.debug("Plugin File   : " + self.plugins[plugin]["fname"])
-                    logger.debug("Plugin ID     : %s" % plugin)
-                    logger.debug("Plugin Output :")
+                    logger.info("Plugin Name   : " + self.plugins[plugin]["name"])
+                    logger.info("Plugin File   : " + self.plugins[plugin]["fname"])
+                    logger.info("Plugin ID     : %s" % plugin)
+                    logger.info("Plugin Output :")
 
                     for output in self.res["outputs"]:
                         if 'plugin_output' in output:
-                            logger.debug(output["plugin_output"])
+                            logger.info(output["plugin_output"])
                         else:
-                            logger.debug("Success")
-                            logger.debug()
+                            logger.info("Success")
+                            logger.info()
 
                 # The 6.x Audit Trail has less information than previous
                 # versions(no plugin name). This information could be captured
@@ -1021,22 +1021,22 @@ class Scanner(object):
                 try:
                     if self.res["trails"]:
                         for output in self.res["trails"]:
-                            logger.debug("Plugin Name   : " + self.plugins[plugin]["name"])
-                            logger.debug("Plugin File   : " + self.plugins[plugin]["fname"])
-                            logger.debug("Plugin ID     : %s" % plugin)
-                            logger.debug("Audit trail   : " + output["output"])
-                            logger.debug()
+                            logger.info("Plugin Name   : " + self.plugins[plugin]["name"])
+                            logger.info("Plugin File   : " + self.plugins[plugin]["fname"])
+                            logger.info("Plugin ID     : %s" % plugin)
+                            logger.info("Audit trail   : " + output["output"])
+                            logger.info()
                 except:
                     pass
 
             if self.format_end:
-                logger.debug(self.format_end)
+                logger.info(self.format_end)
         try:
             if self.res is not None:
                 for host in self.res["comphosts"]:
-                    logger.debug("----------------------------------------")
-                    logger.debug("Target    : %s" % host["hostname"])
-                    logger.debug("----------------------------------------\n")
+                    logger.info("----------------------------------------")
+                    logger.info("Target    : %s" % host["hostname"])
+                    logger.info("----------------------------------------\n")
 
                     for plugin in self.res["compliance"]:
                         self.action("scans/" + str(self.scan_id) + "/hosts/" +
@@ -1074,7 +1074,7 @@ class Scanner(object):
         self.action(action="policies/import",
                     method="POST",
                     extra=data)
-        logger.debug("Imported policy named '%s', id %s" % (self.res['name'],
+        logger.info("Imported policy named '%s', id %s" % (self.res['name'],
                                                      self.res['id']))
         return self.res['id']
 
@@ -1084,8 +1084,8 @@ class Scanner(object):
         Used for debugging and error conditions to easily see the returned
         structure.
         '''
-        logger.debug(json.dumps(self.res, sort_keys=False, indent=2))
-        logger.debug("\n")
+        logger.info(json.dumps(self.res, sort_keys=False, indent=2))
+        logger.info("\n")
 
 ################################################################################
     def objdump(self):
