@@ -246,7 +246,7 @@ class Scanner(object):
                 logger.error("******************END ERROR******************")
 
             if self.debug:
-`                # This could also contain "pretty_print()" but it makes a lot of
+                # This could also contain "pretty_print()" but it makes a lot of
                 # noise if enabled for the entire scan.
                 logger.debug("RESPONSE CODE: %d" % req.status_code)
 
