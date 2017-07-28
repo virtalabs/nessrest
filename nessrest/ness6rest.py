@@ -43,6 +43,7 @@ import collections
 class Ness6RestException(Exception):
     pass
 
+
 class SSLException(Ness6RestException):
     pass
 
@@ -247,7 +248,7 @@ class Scanner(object):
         except requests.exceptions.SSLError as ssl_error:
             raise SSLException('%s for %s.' % (ssl_error, url))
         except requests.exceptions.ConnectionError:
-            raise Exception("Could not connect to %s.\nExiting!\n" % url)
+            raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
