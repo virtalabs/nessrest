@@ -28,11 +28,6 @@
 
 '''
 Module for interacting with Nessus REST interface
-
-Modified by awdeorio
-- Change print to logging
-- Change exit to raise
-- Base exception type Ness6RestException
 '''
 
 import os
