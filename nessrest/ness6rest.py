@@ -764,9 +764,7 @@ class Scanner(object):
                 if (scan["uuid"] == self.scan_uuid
                         and (scan['status'] == "running" or scan['status'] == "pending")):
 
-                    # NOTE TO SELF add update here -- awdeorio
-                    #sys.stdout.write(".")
-                    #sys.stdout.flush()
+                    logger.debug(".")
                     time.sleep(2)
                     counter += 2
 
@@ -950,9 +948,7 @@ class Scanner(object):
                                             + str(file_id) + "/status",
                                             method="GET")
             running = self.res['status'] != 'ready'
-            # NOTE TO SELF update progress here -- awdeorio
-            # sys.stdout.write(".")
-            # sys.stdout.flush()
+            logger.debug(".")
             if counter % 60 == 0:
                 logger.debug("")
 
