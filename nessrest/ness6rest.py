@@ -26,21 +26,27 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
 '''
 Module for interacting with Nessus REST interface
 '''
 
 import os
-import sys
 import atexit
 import time
 import requests
 import json
 import collections
+import logging
 
 
-class SSLException(Exception):
+logger = logging.getLogger(__name__)
+
+
+class Ness6RestException(Exception):
+    pass
+
+
+class SSLException(Ness6RestException):
     pass
 
 
@@ -134,9 +140,8 @@ class Scanner(object):
 
         except KeyError:
             if self.res["error"]:
-                print("It looks like you're trying to login into a Nessus 5")
-                print("instance. Exiting.")
-                sys.exit(0)
+                raise Ness6RestException("It looks like you're trying to login into a Nessus 5 instance.")
+
 
 ################################################################################
     def _get_permissions(self):
@@ -188,16 +193,16 @@ class Scanner(object):
         url = "%s/%s" % (self.url, action)
         if self.debug:
             if private:
-                print("JSON    : **JSON request hidden**")
+                logger.debug("JSON    : **JSON request hidden**")
             else:
-                print("JSON    :")
-                print(payload)
+                logger.debug("JSON    :")
+                logger.debug(payload)
 
-            print("HEADERS :")
-            print(headers)
-            print("URL     : %s " % url)
-            print("METHOD  : %s" % method)
-            print("\n")
+            logger.debug("HEADERS :")
+            logger.debug(headers)
+            logger.debug("URL     : %s " % url)
+            logger.debug("METHOD  : %s" % method)
+            logger.debug("\n")
 
         # Figure out if we should verify SSL connection (possibly with a user
         # supplied CA bundle). Default to true.
@@ -218,34 +223,34 @@ class Scanner(object):
                 self.res = {}
 
             if req.status_code != 200:
-                print("*****************START ERROR*****************")
+                logger.error("*****************START ERROR*****************")
                 if private:
-                    print("JSON    : **JSON request hidden**")
+                    logger.error("JSON    : **JSON request hidden**")
                 else:
-                    print("JSON    :")
-                    print(payload)
-                    print(files)
+                    logger.error("JSON    :")
+                    logger.error(payload)
+                    logger.error(files)
 
-                print("HEADERS :")
-                print(headers)
-                print("URL     : %s " % url)
-                print("METHOD  : %s" % method)
-                print("RESPONSE: %d" % req.status_code)
-                print("\n")
-                self.pretty_print()
-                print("******************END ERROR******************")
+                logger.error("HEADERS :")
+                logger.error(headers)
+                logger.error("URL     : %s " % url)
+                logger.error("METHOD  : %s" % method)
+                logger.error("RESPONSE: %d" % req.status_code)
+                logger.error("\n")
+                logger.error(json.dumps(self.res, sort_keys=False, indent=2))
+                logger.error("******************END ERROR******************")
 
             if self.debug:
                 # This could also contain "pretty_print()" but it makes a lot of
                 # noise if enabled for the entire scan.
-                print("RESPONSE CODE: %d" % req.status_code)
+                logger.debug("RESPONSE CODE: %d" % req.status_code)
 
             if download:
                 return req.content
         except requests.exceptions.SSLError as ssl_error:
             raise SSLException('%s for %s.' % (ssl_error, url))
         except requests.exceptions.ConnectionError:
-            raise Exception("Could not connect to %s.\nExiting!\n" % url)
+            raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -294,8 +299,7 @@ class Scanner(object):
             self.policy_name = self.res["policy_name"]
 
         except KeyError:
-            print("policy_id was not returned. Exiting")
-            sys.exit(1)
+            raise Ness6RestException("policy_id was not returned. Exiting")
 
         self.policy_add_creds(credentials=credentials)
         self._policy_set_settings()
@@ -354,8 +358,7 @@ class Scanner(object):
                 break
 
         if not self.policy_id:
-            print("no policy with name %s found. Exiting" % name)
-            sys.exit(1)
+            raise Ness6RestException("no policy with name %s found." % name)
 
 ################################################################################
     def policy_details(self, policy_id):
@@ -556,8 +559,7 @@ class Scanner(object):
                                               "name": self.res["name"]}})
             else:
                 # We don't want to scan with plugins that don't exist.
-                print ("Plugin with ID %s is not found. Exiting." % plugin)
-                sys.exit(1)
+                Ness6RestException("Plugin with ID %s is not found. Exiting." % plugin)
 
 ################################################################################
     def _enable_plugins(self, plugins=[]):
@@ -743,8 +745,8 @@ class Scanner(object):
 
         self.scan_uuid = self.res["scan_uuid"]
 
-        print("Scan name : %s" % self.scan_name)
-        print("Scan UUID : %s" % self.scan_uuid)
+        logger.info("Scan name : %s" % self.scan_name)
+        logger.info("Scan UUID : %s" % self.scan_uuid)
 
 ################################################################################
     def _scan_status(self):
@@ -762,13 +764,12 @@ class Scanner(object):
                 if (scan["uuid"] == self.scan_uuid
                         and (scan['status'] == "running" or scan['status'] == "pending")):
 
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
+                    logger.debug(".")
                     time.sleep(2)
                     counter += 2
 
                     if counter % 60 == 0:
-                        print("")
+                        logger.debug("")
 
                 if (scan["uuid"] == self.scan_uuid
                         and scan['status'] != "running" and scan['status'] != "pending"):
@@ -779,7 +780,7 @@ class Scanner(object):
                     # actual running time, however this is just a rough metric
                     # that's more to get a feel of how long something is taking,
                     # it's not meant for precision.
-                    print("\nComplete! Run time: %d seconds." % counter)
+                    logger.info("\nComplete! Run time: %d seconds." % counter)
 
 
 ################################################################################
@@ -822,8 +823,7 @@ class Scanner(object):
                 break
 
         if not self.scan_id:
-            print("no scan with name %s found. Exiting" % name)
-            sys.exit(1)
+            Ness6RestException("no scan with name %s found. Exiting" % name)
 
         # Get the details of the scan
         self.action(action="scans/" + str(self.scan_id), method="GET")
@@ -848,7 +848,7 @@ class Scanner(object):
 
         for host in self.res["hosts"]:
             self.action(action="scans/" + str(self.scan_id) + "/hosts/" + str(host["host_id"]), method="GET")
-            #print("scans/" + str(self.scan_id)+ "/hosts/" +str(host["host_id"]))
+            #logger.debug("scans/" + str(self.scan_id)+ "/hosts/" +str(host["host_id"]))
             if self.scan_id not in self.host_vulns:
                 self.host_vulns[self.scan_id] = {}
             self.host_vulns[self.scan_id][host["host_id"]]=self.res
@@ -863,7 +863,7 @@ class Scanner(object):
         self.scan_details(name)
 
         for host in self.res["hosts"]:
-            #print("%s" % host["host_id"])
+            #logger.debug("%s" % host["host_id"])
             self.host_ids[host["host_id"]]=1
 
 ################################################################################
@@ -940,7 +940,7 @@ class Scanner(object):
                                         extra=data)
 
         file_id = self.res['file']
-        print('Download for file id '+str(self.res['file'])+'.')
+        logger.info('Download for file id '+str(self.res['file'])+'.')
         while running:
             time.sleep(2)
             counter += 2
@@ -948,12 +948,11 @@ class Scanner(object):
                                             + str(file_id) + "/status",
                                             method="GET")
             running = self.res['status'] != 'ready'
-            sys.stdout.write(".")
-            sys.stdout.flush()
+            logger.debug(".")
             if counter % 60 == 0:
-                print("")
+                logger.debug("")
 
-        print("")
+        logger.debug("")
 
         content = self.action("scans/" + str(self.scan_id) + "/export/"
                               + str(file_id) + "/download",
@@ -975,11 +974,11 @@ class Scanner(object):
 
         for host in self.res["hosts"]:
             if self.format_start:
-                print(self.format_start)
+                logger.info(self.format_start)
 
-            print("----------------------------------------")
-            print("Target    : %s" % host["hostname"])
-            print("----------------------------------------\n")
+            logger.info("----------------------------------------")
+            logger.info("Target    : %s" % host["hostname"])
+            logger.info("----------------------------------------\n")
 
             for plugin in self.plugins.keys():
                 self.action("scans/" + str(self.scan_id) + "/hosts/" +
@@ -989,17 +988,17 @@ class Scanner(object):
                 # If not defined, the plugin did not fire for the host
                 if self.res["outputs"]:
 
-                    print("Plugin Name   : " + self.plugins[plugin]["name"])
-                    print("Plugin File   : " + self.plugins[plugin]["fname"])
-                    print("Plugin ID     : %s" % plugin)
-                    print("Plugin Output :")
+                    logger.info("Plugin Name   : " + self.plugins[plugin]["name"])
+                    logger.info("Plugin File   : " + self.plugins[plugin]["fname"])
+                    logger.info("Plugin ID     : %s" % plugin)
+                    logger.info("Plugin Output :")
 
                     for output in self.res["outputs"]:
                         if 'plugin_output' in output:
-                            print(output["plugin_output"])
+                            logger.info(output["plugin_output"])
                         else:
-                            print("Success")
-                            print()
+                            logger.info("Success")
+                            logger.info()
 
                 # The 6.x Audit Trail has less information than previous
                 # versions(no plugin name). This information could be captured
@@ -1013,22 +1012,22 @@ class Scanner(object):
                 try:
                     if self.res["trails"]:
                         for output in self.res["trails"]:
-                            print("Plugin Name   : " + self.plugins[plugin]["name"])
-                            print("Plugin File   : " + self.plugins[plugin]["fname"])
-                            print("Plugin ID     : %s" % plugin)
-                            print("Audit trail   : " + output["output"])
-                            print()
+                            logger.info("Plugin Name   : " + self.plugins[plugin]["name"])
+                            logger.info("Plugin File   : " + self.plugins[plugin]["fname"])
+                            logger.info("Plugin ID     : %s" % plugin)
+                            logger.info("Audit trail   : " + output["output"])
+                            logger.info()
                 except:
                     pass
 
             if self.format_end:
-                print(self.format_end)
+                logger.info(self.format_end)
         try:
             if self.res is not None:
                 for host in self.res["comphosts"]:
-                    print("----------------------------------------")
-                    print("Target    : %s" % host["hostname"])
-                    print("----------------------------------------\n")
+                    logger.info("----------------------------------------")
+                    logger.info("Target    : %s" % host["hostname"])
+                    logger.info("----------------------------------------\n")
 
                     for plugin in self.res["compliance"]:
                         self.action("scans/" + str(self.scan_id) + "/hosts/" +
@@ -1066,7 +1065,7 @@ class Scanner(object):
         self.action(action="policies/import",
                     method="POST",
                     extra=data)
-        print("Imported policy named '%s', id %s" % (self.res['name'],
+        logger.info("Imported policy named '%s', id %s" % (self.res['name'],
                                                      self.res['id']))
         return self.res['id']
 
@@ -1076,8 +1075,8 @@ class Scanner(object):
         Used for debugging and error conditions to easily see the returned
         structure.
         '''
-        print(json.dumps(self.res, sort_keys=False, indent=2))
-        print("\n")
+        logger.info(json.dumps(self.res, sort_keys=False, indent=2))
+        logger.info("\n")
 
 ################################################################################
     def objdump(self):
@@ -1085,9 +1084,9 @@ class Scanner(object):
         debugging function to dump all of the set values
         '''
         for attr in dir(self):
-            print("obj.%s = %s" % (attr, getattr(self, attr)))
+            logger.debug("obj.%s = %s" % (attr, getattr(self, attr)))
 
 
 if __name__ == "__main__":
 
-    print("Import the module, do not call directly.")
+    logger.debug("Import the module, do not call directly.")
