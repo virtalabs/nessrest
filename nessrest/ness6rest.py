@@ -756,8 +756,9 @@ class Scanner(object):
         '''
         running = True
         counter = 0
+        failing = 0
 
-        while running:
+        while running or failing < 300:
             self.action(action="scans?folder_id=" + str(self.tag_id),
                         method="GET")
 
@@ -768,6 +769,7 @@ class Scanner(object):
                     logger.debug(".")
                     time.sleep(2)
                     counter += 2
+                    failing = 0
 
                     if counter % 60 == 0:
                         logger.debug("")
@@ -776,6 +778,8 @@ class Scanner(object):
                         and scan['status'] != "running" and scan['status'] != "pending"):
 
                     running = False
+                    time.sleep(2)
+                    failing += 2
 
                     # Yes, there are timestamps that we can use to compute the
                     # actual running time, however this is just a rough metric
