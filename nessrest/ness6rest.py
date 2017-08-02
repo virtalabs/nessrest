@@ -212,46 +212,48 @@ class Scanner(object):
             verify = self.ca_bundle
         else:
             verify = True
+        failing = 0
+        while failing < 500:
+            try:
+                req = requests.request(method, url, data=payload, files=files,
+                                    verify=verify, headers=headers)
+                failing = 0
+                if not download and req.text:
+                    self.res = req.json()
+                elif not req.text:
+                    self.res = {}
 
-        try:
-            # wait 601 seconds before timing out
-            req = requests.request(method, url, data=payload, files=files,
-                                   verify=verify, headers=headers, timeout=601)
+                if req.status_code != 200:
+                    logger.error("*****************START ERROR*****************")
+                    if private:
+                        logger.error("JSON    : **JSON request hidden**")
+                    else:
+                        logger.error("JSON    :")
+                        logger.error(payload)
+                        logger.error(files)
 
-            if not download and req.text:
-                self.res = req.json()
-            elif not req.text:
-                self.res = {}
+                    logger.error("HEADERS :")
+                    logger.error(headers)
+                    logger.error("URL     : %s " % url)
+                    logger.error("METHOD  : %s" % method)
+                    logger.error("RESPONSE: %d" % req.status_code)
+                    logger.error("\n")
+                    logger.error(json.dumps(self.res, sort_keys=False, indent=2))
+                    logger.error("******************END ERROR******************")
 
-            if req.status_code != 200:
-                logger.error("*****************START ERROR*****************")
-                if private:
-                    logger.error("JSON    : **JSON request hidden**")
-                else:
-                    logger.error("JSON    :")
-                    logger.error(payload)
-                    logger.error(files)
+                if self.debug:
+                    # This could also contain "pretty_print()" but it makes a lot of
+                    # noise if enabled for the entire scan.
+                    logger.debug("RESPONSE CODE: %d" % req.status_code)
 
-                logger.error("HEADERS :")
-                logger.error(headers)
-                logger.error("URL     : %s " % url)
-                logger.error("METHOD  : %s" % method)
-                logger.error("RESPONSE: %d" % req.status_code)
-                logger.error("\n")
-                logger.error(json.dumps(self.res, sort_keys=False, indent=2))
-                logger.error("******************END ERROR******************")
-
-            if self.debug:
-                # This could also contain "pretty_print()" but it makes a lot of
-                # noise if enabled for the entire scan.
-                logger.debug("RESPONSE CODE: %d" % req.status_code)
-
-            if download:
-                return req.content
-        except requests.exceptions.SSLError as ssl_error:
-            raise SSLException('%s for %s.' % (ssl_error, url))
-        except requests.exceptions.ConnectionError:
-            raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
+                if download:
+                    return req.content
+            except requests.exceptions.SSLError as ssl_error:
+                raise SSLException('%s for %s.' % (ssl_error, url))
+            except requests.exceptions.ConnectionError:
+                time.sleep(2)
+                failing += 2
+                # raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -756,9 +758,8 @@ class Scanner(object):
         '''
         running = True
         counter = 0
-        failing = 0
 
-        while running or failing < 300:
+        while running:
             self.action(action="scans?folder_id=" + str(self.tag_id),
                         method="GET")
 
@@ -778,8 +779,6 @@ class Scanner(object):
                         and scan['status'] != "running" and scan['status'] != "pending"):
 
                     running = False
-                    time.sleep(2)
-                    failing += 2
 
                     # Yes, there are timestamps that we can use to compute the
                     # actual running time, however this is just a rough metric
