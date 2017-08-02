@@ -214,9 +214,9 @@ class Scanner(object):
             verify = True
 
         try:
-            # wait 61 seconds before timing out
+            # wait 601 seconds before timing out
             req = requests.request(method, url, data=payload, files=files,
-                                   verify=verify, headers=headers, timeout=61)
+                                   verify=verify, headers=headers, timeout=601)
 
             if not download and req.text:
                 self.res = req.json()
