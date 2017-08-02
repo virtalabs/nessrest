@@ -212,12 +212,11 @@ class Scanner(object):
             verify = self.ca_bundle
         else:
             verify = True
-        failing = 0
-        while failing < 500:
+        failures = 0
+        while failures < 5:
             try:
                 req = requests.request(method, url, data=payload, files=files,
                                     verify=verify, headers=headers)
-                failing = 0
                 if not download and req.text:
                     self.res = req.json()
                 elif not req.text:
@@ -251,9 +250,10 @@ class Scanner(object):
             except requests.exceptions.SSLError as ssl_error:
                 raise SSLException('%s for %s.' % (ssl_error, url))
             except requests.exceptions.ConnectionError:
-                time.sleep(2)
-                failing += 2
-                raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
+                time.sleep(1)
+                failures += 1
+                if failures == 4:
+                    raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -770,7 +770,6 @@ class Scanner(object):
                     logger.debug(".")
                     time.sleep(2)
                     counter += 2
-                    failing = 0
 
                     if counter % 60 == 0:
                         logger.debug("")
