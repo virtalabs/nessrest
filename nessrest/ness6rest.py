@@ -253,7 +253,7 @@ class Scanner(object):
             except requests.exceptions.ConnectionError:
                 time.sleep(2)
                 failing += 2
-                # raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
+                raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
