@@ -755,18 +755,20 @@ class Scanner(object):
     def _scan_status(self):
         '''
         Check on the scan every 2 seconds.
+
+        If it is failing, wait five seconds and try again
         '''
         running = True
         counter = 0
 
         failures = 0
-        while running and failures < 300:
+        while running and failures < 100:
             try:
                 self.action(action="scans?folder_id=" + str(self.tag_id),
                             method="GET")
             except requests.exceptions.ConnectionError:
                 failures += 1
-                time.sleep(1)
+                time.sleep(5)
                 continue
 
             for scan in self.res["scans"]:
