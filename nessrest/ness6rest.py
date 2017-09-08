@@ -339,7 +339,9 @@ class Scanner(object):
         '''
         self.policy_name = name
         self.action(action="policies", method="GET")
-
+        # if there are no policies, this policy doesn't exist
+        if not self.res["policies"]:
+            return False
         for policy in self.res["policies"]:
             if policy["name"] == name:
                 self.policy_id = policy["id"]
