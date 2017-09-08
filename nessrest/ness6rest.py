@@ -579,8 +579,8 @@ class Scanner(object):
         self.action(action="editor/policy/" + str(self.policy_id), method="GET")
 
         # Build an object to disable all plugins at the family level.
-        for item in self.res["plugins"]["families"]:
-            families["plugins"].update({item: {"status": "disabled"}})
+        # for item in self.res["plugins"]["families"]:
+        #     families["plugins"].update({item: {"status": "disabled"}})
 
         # print(json.dumps(families, sort_keys=False, indent=4))
         self.action(action="policies/" + str(self.policy_id),
