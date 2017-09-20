@@ -248,8 +248,9 @@ class Scanner(object):
                 return req.content
         except requests.exceptions.SSLError as ssl_error:
             raise SSLException('%s for %s.' % (ssl_error, url))
-        except requests.exceptions.ConnectionError:
-            raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
+        except requests.exceptions.ConnectionError as err:
+            raise Ness6RestException("Connection to {} failed with '{}'"
+                                     "".format(url, err))
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -762,8 +763,10 @@ class Scanner(object):
             try:
                 self.action(action="scans?folder_id=" + str(self.tag_id),
                             method="GET")
-            except Ness6RestException:
+            except Ness6RestException as err:
                 failures += 1
+                logger.warning("Request caused exception '%s', (# %d)",
+                               err, failures)
                 time.sleep(5)
                 continue
 
