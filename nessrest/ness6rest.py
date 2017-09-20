@@ -339,7 +339,9 @@ class Scanner(object):
         '''
         self.policy_name = name
         self.action(action="policies", method="GET")
-
+        # if there are no policies, this policy doesn't exist
+        if not self.res["policies"]:
+            return False
         for policy in self.res["policies"]:
             if policy["name"] == name:
                 self.policy_id = policy["id"]
@@ -580,6 +582,8 @@ class Scanner(object):
 
         # Build an object to disable all plugins at the family level.
         for item in self.res["plugins"]["families"]:
+            # enable them first, then disable them
+            families["plugins"].update({item: {"status": "enabled"}})
             families["plugins"].update({item: {"status": "disabled"}})
 
         # print(json.dumps(families, sort_keys=False, indent=4))
