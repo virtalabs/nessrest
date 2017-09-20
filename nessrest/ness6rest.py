@@ -217,13 +217,17 @@ class Scanner(object):
 
         try:
             req = requests.request(method, url, data=payload, files=files,
-                                   verify=verify, headers=headers)
+                                   verify=verify, headers=headers,
+                                   timeout=2.0)
         except requests.exceptions.SSLError as ssl_error:
             raise Ness6RestSSLException(
                 "{}: SSL Error '{}' for %s.".format(url, ssl_error))
         except requests.exceptions.ConnectionError as err:
             raise Ness6RestConnectionException(
                 "Connection to {} failed with '{}'".format(url, err))
+        except requests.exceptions.Timeout as err:
+            raise Ness6RestConnectionException(
+                "Connection to {} timed out: '{}'".format(url, err))
         else:
             if not download and req.text:
                 self.res = req.json()
