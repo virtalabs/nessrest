@@ -45,8 +45,10 @@ logger = logging.getLogger(__name__)
 class Ness6RestException(Exception):
     pass
 
+class Ness6RestSSLException(Ness6RestException):
+    pass
 
-class SSLException(Ness6RestException):
+class Ness6RestConnectionException(Ness6RestException):
     pass
 
 
@@ -216,6 +218,13 @@ class Scanner(object):
         try:
             req = requests.request(method, url, data=payload, files=files,
                                    verify=verify, headers=headers)
+        except requests.exceptions.SSLError as ssl_error:
+            raise Ness6RestSSLException(
+                "{}: SSL Error '{}' for %s.".format(url, ssl_error))
+        except requests.exceptions.ConnectionError as err:
+            raise Ness6RestConnectionException(
+                "Connection to {} failed with '{}'".format(url, err))
+        else:
             if not download and req.text:
                 self.res = req.json()
             elif not req.text:
@@ -246,11 +255,6 @@ class Scanner(object):
 
             if download:
                 return req.content
-        except requests.exceptions.SSLError as ssl_error:
-            raise SSLException('%s for %s.' % (ssl_error, url))
-        except requests.exceptions.ConnectionError as err:
-            raise Ness6RestException("Connection to {} failed with '{}'"
-                                     "".format(url, err))
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -763,7 +767,7 @@ class Scanner(object):
             try:
                 self.action(action="scans?folder_id=" + str(self.tag_id),
                             method="GET")
-            except Ness6RestException as err:
+            except Ness6RestConnectionException as err:
                 failures += 1
                 logger.warning("Request caused exception '%s', (# %d)",
                                err, failures)
