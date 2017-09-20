@@ -26,18 +26,20 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
 '''
 Module for interacting with Nessus REST interface
 '''
 
 import os
-import sys
 import atexit
 import time
 import requests
 import json
 import collections
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class Ness6RestException(Exception):
@@ -191,16 +193,16 @@ class Scanner(object):
         url = "%s/%s" % (self.url, action)
         if self.debug:
             if private:
-                print("JSON    : **JSON request hidden**")
+                logger.debug("JSON    : **JSON request hidden**")
             else:
-                print("JSON    :")
-                print(payload)
+                logger.debug("JSON    :")
+                logger.debug(payload)
 
-            print("HEADERS :")
-            print(headers)
-            print("URL     : %s " % url)
-            print("METHOD  : %s" % method)
-            print("\n")
+            logger.debug("HEADERS :")
+            logger.debug(headers)
+            logger.debug("URL     : %s " % url)
+            logger.debug("METHOD  : %s" % method)
+            logger.debug("\n")
 
         # Figure out if we should verify SSL connection (possibly with a user
         # supplied CA bundle). Default to true.
@@ -221,27 +223,27 @@ class Scanner(object):
                 self.res = {}
 
             if req.status_code != 200:
-                print("*****************START ERROR*****************")
+                logger.debug("*****************START ERROR*****************")
                 if private:
-                    print("JSON    : **JSON request hidden**")
+                    logger.debug("JSON    : **JSON request hidden**")
                 else:
-                    print("JSON    :")
-                    print(payload)
-                    print(files)
+                    logger.debug("JSON    :")
+                    logger.debug(payload)
+                    logger.debug(files)
 
-                print("HEADERS :")
-                print(headers)
-                print("URL     : %s " % url)
-                print("METHOD  : %s" % method)
-                print("RESPONSE: %d" % req.status_code)
-                print("\n")
+                logger.debug("HEADERS :")
+                logger.debug(headers)
+                logger.debug("URL     : %s " % url)
+                logger.debug("METHOD  : %s" % method)
+                logger.debug("RESPONSE: %d" % req.status_code)
+                logger.debug("\n")
                 self.pretty_print()
-                print("******************END ERROR******************")
+                logger.debug("******************END ERROR******************")
 
             if self.debug:
                 # This could also contain "pretty_print()" but it makes a lot of
                 # noise if enabled for the entire scan.
-                print("RESPONSE CODE: %d" % req.status_code)
+                logger.debug("RESPONSE CODE: %d" % req.status_code)
 
             if download:
                 return req.content
@@ -743,8 +745,8 @@ class Scanner(object):
 
         self.scan_uuid = self.res["scan_uuid"]
 
-        print("Scan name : %s" % self.scan_name)
-        print("Scan UUID : %s" % self.scan_uuid)
+        logger.debug("Scan name : %s" % self.scan_name)
+        logger.debug("Scan UUID : %s" % self.scan_uuid)
 
 ################################################################################
     def _scan_status(self):
@@ -762,13 +764,14 @@ class Scanner(object):
                 if (scan["uuid"] == self.scan_uuid
                         and (scan['status'] == "running" or scan['status'] == "pending")):
 
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
+                    # NOTE TO SELF add update here -- awdeorio
+                    #sys.stdout.write(".")
+                    #sys.stdout.flush()
                     time.sleep(2)
                     counter += 2
 
                     if counter % 60 == 0:
-                        print("")
+                        logger.debug("")
 
                 if (scan["uuid"] == self.scan_uuid
                         and scan['status'] != "running" and scan['status'] != "pending"):
@@ -779,7 +782,7 @@ class Scanner(object):
                     # actual running time, however this is just a rough metric
                     # that's more to get a feel of how long something is taking,
                     # it's not meant for precision.
-                    print("\nComplete! Run time: %d seconds." % counter)
+                    logger.debug("\nComplete! Run time: %d seconds." % counter)
 
 
 ################################################################################
@@ -847,7 +850,7 @@ class Scanner(object):
 
         for host in self.res["hosts"]:
             self.action(action="scans/" + str(self.scan_id) + "/hosts/" + str(host["host_id"]), method="GET")
-            #print("scans/" + str(self.scan_id)+ "/hosts/" +str(host["host_id"]))
+            #logger.debug("scans/" + str(self.scan_id)+ "/hosts/" +str(host["host_id"]))
             if self.scan_id not in self.host_vulns:
                 self.host_vulns[self.scan_id] = {}
             self.host_vulns[self.scan_id][host["host_id"]]=self.res
@@ -862,7 +865,7 @@ class Scanner(object):
         self.scan_details(name)
 
         for host in self.res["hosts"]:
-            #print("%s" % host["host_id"])
+            #logger.debug("%s" % host["host_id"])
             self.host_ids[host["host_id"]]=1
 
 ################################################################################
@@ -939,7 +942,7 @@ class Scanner(object):
                                         extra=data)
 
         file_id = self.res['file']
-        print('Download for file id '+str(self.res['file'])+'.')
+        logger.debug('Download for file id '+str(self.res['file'])+'.')
         while running:
             time.sleep(2)
             counter += 2
@@ -947,12 +950,13 @@ class Scanner(object):
                                             + str(file_id) + "/status",
                                             method="GET")
             running = self.res['status'] != 'ready'
-            sys.stdout.write(".")
-            sys.stdout.flush()
+            # NOTE TO SELF update progress here -- awdeorio
+            # sys.stdout.write(".")
+            # sys.stdout.flush()
             if counter % 60 == 0:
-                print("")
+                logger.debug("")
 
-        print("")
+        logger.debug("")
 
         content = self.action("scans/" + str(self.scan_id) + "/export/"
                               + str(file_id) + "/download",
@@ -974,11 +978,11 @@ class Scanner(object):
 
         for host in self.res["hosts"]:
             if self.format_start:
-                print(self.format_start)
+                logger.debug(self.format_start)
 
-            print("----------------------------------------")
-            print("Target    : %s" % host["hostname"])
-            print("----------------------------------------\n")
+            logger.debug("----------------------------------------")
+            logger.debug("Target    : %s" % host["hostname"])
+            logger.debug("----------------------------------------\n")
 
             for plugin in self.plugins.keys():
                 self.action("scans/" + str(self.scan_id) + "/hosts/" +
@@ -988,17 +992,17 @@ class Scanner(object):
                 # If not defined, the plugin did not fire for the host
                 if self.res["outputs"]:
 
-                    print("Plugin Name   : " + self.plugins[plugin]["name"])
-                    print("Plugin File   : " + self.plugins[plugin]["fname"])
-                    print("Plugin ID     : %s" % plugin)
-                    print("Plugin Output :")
+                    logger.debug("Plugin Name   : " + self.plugins[plugin]["name"])
+                    logger.debug("Plugin File   : " + self.plugins[plugin]["fname"])
+                    logger.debug("Plugin ID     : %s" % plugin)
+                    logger.debug("Plugin Output :")
 
                     for output in self.res["outputs"]:
                         if 'plugin_output' in output:
-                            print(output["plugin_output"])
+                            logger.debug(output["plugin_output"])
                         else:
-                            print("Success")
-                            print()
+                            logger.debug("Success")
+                            logger.debug()
 
                 # The 6.x Audit Trail has less information than previous
                 # versions(no plugin name). This information could be captured
@@ -1012,22 +1016,22 @@ class Scanner(object):
                 try:
                     if self.res["trails"]:
                         for output in self.res["trails"]:
-                            print("Plugin Name   : " + self.plugins[plugin]["name"])
-                            print("Plugin File   : " + self.plugins[plugin]["fname"])
-                            print("Plugin ID     : %s" % plugin)
-                            print("Audit trail   : " + output["output"])
-                            print()
+                            logger.debug("Plugin Name   : " + self.plugins[plugin]["name"])
+                            logger.debug("Plugin File   : " + self.plugins[plugin]["fname"])
+                            logger.debug("Plugin ID     : %s" % plugin)
+                            logger.debug("Audit trail   : " + output["output"])
+                            logger.debug()
                 except:
                     pass
 
             if self.format_end:
-                print(self.format_end)
+                logger.debug(self.format_end)
         try:
             if self.res is not None:
                 for host in self.res["comphosts"]:
-                    print("----------------------------------------")
-                    print("Target    : %s" % host["hostname"])
-                    print("----------------------------------------\n")
+                    logger.debug("----------------------------------------")
+                    logger.debug("Target    : %s" % host["hostname"])
+                    logger.debug("----------------------------------------\n")
 
                     for plugin in self.res["compliance"]:
                         self.action("scans/" + str(self.scan_id) + "/hosts/" +
@@ -1065,7 +1069,7 @@ class Scanner(object):
         self.action(action="policies/import",
                     method="POST",
                     extra=data)
-        print("Imported policy named '%s', id %s" % (self.res['name'],
+        logger.debug("Imported policy named '%s', id %s" % (self.res['name'],
                                                      self.res['id']))
         return self.res['id']
 
@@ -1075,8 +1079,8 @@ class Scanner(object):
         Used for debugging and error conditions to easily see the returned
         structure.
         '''
-        print(json.dumps(self.res, sort_keys=False, indent=2))
-        print("\n")
+        logger.debug(json.dumps(self.res, sort_keys=False, indent=2))
+        logger.debug("\n")
 
 ################################################################################
     def objdump(self):
@@ -1084,9 +1088,9 @@ class Scanner(object):
         debugging function to dump all of the set values
         '''
         for attr in dir(self):
-            print("obj.%s = %s" % (attr, getattr(self, attr)))
+            logger.debug("obj.%s = %s" % (attr, getattr(self, attr)))
 
 
 if __name__ == "__main__":
 
-    print("Import the module, do not call directly.")
+    logger.debug("Import the module, do not call directly.")
