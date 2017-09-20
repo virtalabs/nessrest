@@ -218,7 +218,7 @@ class Scanner(object):
         try:
             req = requests.request(method, url, data=payload, files=files,
                                    verify=verify, headers=headers,
-                                   timeout=2.0)
+                                   timeout=5.0)
         except requests.exceptions.SSLError as ssl_error:
             raise Ness6RestSSLException(
                 "{}: SSL Error '{}' for %s.".format(url, ssl_error))
@@ -761,8 +761,10 @@ class Scanner(object):
         '''
         Check on the scan every 2 seconds.
 
-        If it is failing, wait five seconds and try again
+        If it is failing, wait 2 seconds and try again
         '''
+        start_time = time.time()
+
         running = True
         counter = 0
 
@@ -775,30 +777,24 @@ class Scanner(object):
                 failures += 1
                 logger.warning("Request caused exception '%s', (# %d)",
                                err, failures)
-                time.sleep(5)
+                time.sleep(2)
                 continue
 
             for scan in self.res["scans"]:
                 if (scan["uuid"] == self.scan_uuid
                         and (scan['status'] == "running" or scan['status'] == "pending")):
-
                     logger.debug(".")
                     time.sleep(2)
-                    counter += 2
-
-                    if counter % 60 == 0:
+                    counter += 1
+                    if counter % 30 == 0:
                         logger.debug("")
 
                 if (scan["uuid"] == self.scan_uuid
                         and scan['status'] != "running" and scan['status'] != "pending"):
-
                     running = False
 
-                    # Yes, there are timestamps that we can use to compute the
-                    # actual running time, however this is just a rough metric
-                    # that's more to get a feel of how long something is taking,
-                    # it's not meant for precision.
-                    logger.info("\nComplete! Run time: %d seconds." % counter)
+        logger.info(
+            "Complete! Run time: %.1f seconds." % (time.time() -  start_time))
 
 
 ################################################################################
