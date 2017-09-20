@@ -40,7 +40,10 @@ import json
 import collections
 
 
-class SSLException(Exception):
+class Ness6RestException(Exception):
+    pass
+
+class SSLException(Ness6RestException):
     pass
 
 
@@ -134,9 +137,8 @@ class Scanner(object):
 
         except KeyError:
             if self.res["error"]:
-                print("It looks like you're trying to login into a Nessus 5")
-                print("instance. Exiting.")
-                sys.exit(0)
+                raise Ness6RestException("It looks like you're trying to login into a Nessus 5 instance.")
+
 
 ################################################################################
     def _get_permissions(self):
@@ -294,8 +296,7 @@ class Scanner(object):
             self.policy_name = self.res["policy_name"]
 
         except KeyError:
-            print("policy_id was not returned. Exiting")
-            sys.exit(1)
+            raise Ness6RestException("policy_id was not returned. Exiting")
 
         self.policy_add_creds(credentials=credentials)
         self._policy_set_settings()
@@ -354,8 +355,7 @@ class Scanner(object):
                 break
 
         if not self.policy_id:
-            print("no policy with name %s found. Exiting" % name)
-            sys.exit(1)
+            raise Ness6RestException("no policy with name %s found." % name)
 
 ################################################################################
     def policy_details(self, policy_id):
@@ -556,8 +556,7 @@ class Scanner(object):
                                               "name": self.res["name"]}})
             else:
                 # We don't want to scan with plugins that don't exist.
-                print ("Plugin with ID %s is not found. Exiting." % plugin)
-                sys.exit(1)
+                Ness6RestException("Plugin with ID %s is not found. Exiting." % plugin)
 
 ################################################################################
     def _enable_plugins(self, plugins=[]):
@@ -822,8 +821,7 @@ class Scanner(object):
                 break
 
         if not self.scan_id:
-            print("no scan with name %s found. Exiting" % name)
-            sys.exit(1)
+            Ness6RestException("no scan with name %s found. Exiting" % name)
 
         # Get the details of the scan
         self.action(action="scans/" + str(self.scan_id), method="GET")
