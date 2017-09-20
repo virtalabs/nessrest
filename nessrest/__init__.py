@@ -1,1 +1,1 @@
-__version__ = "0.40.virta.4"
+__version__ = "0.40.virta.5"
