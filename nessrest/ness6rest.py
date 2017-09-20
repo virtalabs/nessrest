@@ -212,45 +212,48 @@ class Scanner(object):
             verify = self.ca_bundle
         else:
             verify = True
+        # failures = 0
+        # while failures < 5:
+        # try:
+        req = requests.request(method, url, data=payload, files=files,
+                            verify=verify, headers=headers)
+        if not download and req.text:
+            self.res = req.json()
+        elif not req.text:
+            self.res = {}
 
-        try:
-            req = requests.request(method, url, data=payload, files=files,
-                                   verify=verify, headers=headers)
+        if req.status_code != 200:
+            logger.error("*****************START ERROR*****************")
+            if private:
+                logger.error("JSON    : **JSON request hidden**")
+            else:
+                logger.error("JSON    :")
+                logger.error(payload)
+                logger.error(files)
 
-            if not download and req.text:
-                self.res = req.json()
-            elif not req.text:
-                self.res = {}
+            logger.error("HEADERS :")
+            logger.error(headers)
+            logger.error("URL     : %s " % url)
+            logger.error("METHOD  : %s" % method)
+            logger.error("RESPONSE: %d" % req.status_code)
+            logger.error("\n")
+            logger.error(json.dumps(self.res, sort_keys=False, indent=2))
+            logger.error("******************END ERROR******************")
 
-            if req.status_code != 200:
-                logger.error("*****************START ERROR*****************")
-                if private:
-                    logger.error("JSON    : **JSON request hidden**")
-                else:
-                    logger.error("JSON    :")
-                    logger.error(payload)
-                    logger.error(files)
+        if self.debug:
+            # This could also contain "pretty_print()" but it makes a lot of
+            # noise if enabled for the entire scan.
+            logger.debug("RESPONSE CODE: %d" % req.status_code)
 
-                logger.error("HEADERS :")
-                logger.error(headers)
-                logger.error("URL     : %s " % url)
-                logger.error("METHOD  : %s" % method)
-                logger.error("RESPONSE: %d" % req.status_code)
-                logger.error("\n")
-                logger.error(json.dumps(self.res, sort_keys=False, indent=2))
-                logger.error("******************END ERROR******************")
-
-            if self.debug:
-                # This could also contain "pretty_print()" but it makes a lot of
-                # noise if enabled for the entire scan.
-                logger.debug("RESPONSE CODE: %d" % req.status_code)
-
-            if download:
-                return req.content
-        except requests.exceptions.SSLError as ssl_error:
-            raise SSLException('%s for %s.' % (ssl_error, url))
-        except requests.exceptions.ConnectionError:
-            raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
+        if download:
+            return req.content
+        # except requests.exceptions.SSLError as ssl_error:
+        #     raise SSLException('%s for %s.' % (ssl_error, url))
+        # except requests.exceptions.ConnectionError:
+        #     time.sleep(1)
+        #     failures += 1
+        #     if failures == 4:
+        #         raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -752,13 +755,21 @@ class Scanner(object):
     def _scan_status(self):
         '''
         Check on the scan every 2 seconds.
+
+        If it is failing, wait five seconds and try again
         '''
         running = True
         counter = 0
 
-        while running:
-            self.action(action="scans?folder_id=" + str(self.tag_id),
-                        method="GET")
+        failures = 0
+        while running and failures < 100:
+            try:
+                self.action(action="scans?folder_id=" + str(self.tag_id),
+                            method="GET")
+            except (requests.exceptions.ConnectionError, requests.exceptions.SSLError):
+                failures += 1
+                time.sleep(5)
+                continue
 
             for scan in self.res["scans"]:
                 if (scan["uuid"] == self.scan_uuid
