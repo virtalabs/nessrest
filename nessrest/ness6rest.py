@@ -783,18 +783,17 @@ class Scanner(object):
             for scan in self.res["scans"]:
                 if (scan["uuid"] == self.scan_uuid
                         and (scan['status'] == "running" or scan['status'] == "pending")):
-                    logger.debug(".")
                     time.sleep(2)
                     counter += 1
                     if counter % 30 == 0:
-                        logger.debug("")
+                        logger.info("Checking scan status, time elapsed %.1f sec", (time.time() -  start_time))
 
                 if (scan["uuid"] == self.scan_uuid
                         and scan['status'] != "running" and scan['status'] != "pending"):
                     running = False
 
         logger.info(
-            "Complete! Run time: %.1f seconds." % (time.time() -  start_time))
+            "Complete! Run time: %.1f seconds.", (time.time() -  start_time))
 
 
 ################################################################################
