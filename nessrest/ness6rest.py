@@ -588,6 +588,8 @@ class Scanner(object):
 
         # Build an object to disable all plugins at the family level.
         for item in self.res["plugins"]["families"]:
+            # enable them first, then disable them
+            families["plugins"].update({item: {"status": "enabled"}})
             families["plugins"].update({item: {"status": "disabled"}})
 
         # print(json.dumps(families, sort_keys=False, indent=4))
