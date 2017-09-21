@@ -45,8 +45,10 @@ logger = logging.getLogger(__name__)
 class Ness6RestException(Exception):
     pass
 
+class Ness6RestSSLException(Ness6RestException):
+    pass
 
-class SSLException(Ness6RestException):
+class Ness6RestConnectionException(Ness6RestException):
     pass
 
 
@@ -212,48 +214,51 @@ class Scanner(object):
             verify = self.ca_bundle
         else:
             verify = True
-        # failures = 0
-        # while failures < 5:
-        # try:
-        req = requests.request(method, url, data=payload, files=files,
-                            verify=verify, headers=headers)
-        if not download and req.text:
-            self.res = req.json()
-        elif not req.text:
-            self.res = {}
 
-        if req.status_code != 200:
-            logger.error("*****************START ERROR*****************")
-            if private:
-                logger.error("JSON    : **JSON request hidden**")
-            else:
-                logger.error("JSON    :")
-                logger.error(payload)
-                logger.error(files)
+        try:
+            req = requests.request(method, url, data=payload, files=files,
+                                   verify=verify, headers=headers,
+                                   timeout=5.0)
+        except requests.exceptions.SSLError as ssl_error:
+            raise Ness6RestSSLException(
+                "{}: SSL Error '{}' for %s.".format(url, ssl_error))
+        except requests.exceptions.ConnectionError as err:
+            raise Ness6RestConnectionException(
+                "Connection to {} failed with '{}'".format(url, err))
+        except requests.exceptions.Timeout as err:
+            raise Ness6RestConnectionException(
+                "Connection to {} timed out: '{}'".format(url, err))
+        else:
+            if not download and req.text:
+                self.res = req.json()
+            elif not req.text:
+                self.res = {}
 
-            logger.error("HEADERS :")
-            logger.error(headers)
-            logger.error("URL     : %s " % url)
-            logger.error("METHOD  : %s" % method)
-            logger.error("RESPONSE: %d" % req.status_code)
-            logger.error("\n")
-            logger.error(json.dumps(self.res, sort_keys=False, indent=2))
-            logger.error("******************END ERROR******************")
+            if req.status_code != 200:
+                logger.error("*****************START ERROR*****************")
+                if private:
+                    logger.error("JSON    : **JSON request hidden**")
+                else:
+                    logger.error("JSON    :")
+                    logger.error(payload)
+                    logger.error(files)
 
-        if self.debug:
-            # This could also contain "pretty_print()" but it makes a lot of
-            # noise if enabled for the entire scan.
-            logger.debug("RESPONSE CODE: %d" % req.status_code)
+                logger.error("HEADERS :")
+                logger.error(headers)
+                logger.error("URL     : %s " % url)
+                logger.error("METHOD  : %s" % method)
+                logger.error("RESPONSE: %d" % req.status_code)
+                logger.error("\n")
+                logger.error(json.dumps(self.res, sort_keys=False, indent=2))
+                logger.error("******************END ERROR******************")
 
-        if download:
-            return req.content
-        # except requests.exceptions.SSLError as ssl_error:
-        #     raise SSLException('%s for %s.' % (ssl_error, url))
-        # except requests.exceptions.ConnectionError:
-        #     time.sleep(1)
-        #     failures += 1
-        #     if failures == 4:
-        #         raise Ness6RestException("Could not connect to %s.\nExiting!\n" % url)
+            if self.debug:
+                # This could also contain "pretty_print()" but it makes a lot of
+                # noise if enabled for the entire scan.
+                logger.debug("RESPONSE CODE: %d" % req.status_code)
+
+            if download:
+                return req.content
 
         if self.res and "error" in self.res and retry:
             if self.res["error"] == "You need to log in to perform this request" or self.res["error"] == "Invalid Credentials":
@@ -756,8 +761,10 @@ class Scanner(object):
         '''
         Check on the scan every 2 seconds.
 
-        If it is failing, wait five seconds and try again
+        If it is failing, wait 2 seconds and try again
         '''
+        start_time = time.time()
+
         running = True
         counter = 0
 
@@ -766,32 +773,27 @@ class Scanner(object):
             try:
                 self.action(action="scans?folder_id=" + str(self.tag_id),
                             method="GET")
-            except (requests.exceptions.ConnectionError, requests.exceptions.SSLError):
+            except Ness6RestConnectionException as err:
                 failures += 1
-                time.sleep(5)
+                logger.warning("Request caused exception '%s', (# %d)",
+                               err, failures)
+                time.sleep(2)
                 continue
 
             for scan in self.res["scans"]:
                 if (scan["uuid"] == self.scan_uuid
                         and (scan['status'] == "running" or scan['status'] == "pending")):
-
-                    logger.debug(".")
                     time.sleep(2)
-                    counter += 2
-
-                    if counter % 60 == 0:
-                        logger.debug("")
+                    counter += 1
+                    if counter % 30 == 0:
+                        logger.info("Checking scan status, time elapsed %.1f sec", (time.time() -  start_time))
 
                 if (scan["uuid"] == self.scan_uuid
                         and scan['status'] != "running" and scan['status'] != "pending"):
-
                     running = False
 
-                    # Yes, there are timestamps that we can use to compute the
-                    # actual running time, however this is just a rough metric
-                    # that's more to get a feel of how long something is taking,
-                    # it's not meant for precision.
-                    logger.info("\nComplete! Run time: %d seconds." % counter)
+        logger.info(
+            "Complete! Run time: %.1f seconds.", (time.time() -  start_time))
 
 
 ################################################################################
