@@ -320,8 +320,9 @@ class Scanner(object):
         Create a copy of an existing policy and set it to be used for a scan
         '''
         self.action(action="policies", method="GET")
+        policies = self.res["policies"] or []
 
-        for policy in self.res["policies"]:
+        for policy in policies:
             if policy["name"] == existing_policy_name:
                 self.action(action="policies/" + str(policy["id"]) + "/copy", method="POST")
                 self.policy_id = self.res["id"]
@@ -344,8 +345,9 @@ class Scanner(object):
         '''
         self.policy_name = name
         self.action(action="policies", method="GET")
+        policies = self.res["policies"] or []
 
-        for policy in self.res["policies"]:
+        for policy in policies:
             if policy["name"] == name:
                 self.policy_id = policy["id"]
                 return True
@@ -359,8 +361,9 @@ class Scanner(object):
         '''
         self.policy_name = name
         self.action(action="policies", method="GET")
+        policies = self.res["policies"] or []
 
-        for policy in self.res["policies"]:
+        for policy in policies:
             if policy["name"] == name:
                 self.policy_id = policy["id"]
                 break
