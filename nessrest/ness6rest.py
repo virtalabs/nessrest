@@ -173,7 +173,8 @@ class Scanner(object):
         except:
             pass
 ################################################################################
-    def action(self, action, method, extra={}, files={}, json_req=True, download=False, private=False, retry=True):
+    def action(self, action, method, extra={}, files={}, json_req=True,
+               download=False, private=False, retry=True, timeout=5.0):
         '''
         Generic actions for REST interface. The json_req may be unneeded, but
         the plugin searching functionality does not use a JSON-esque request.
@@ -218,7 +219,7 @@ class Scanner(object):
         try:
             req = requests.request(method, url, data=payload, files=files,
                                    verify=verify, headers=headers,
-                                   timeout=5.0)
+                                   timeout=timeout)
         except requests.exceptions.SSLError as ssl_error:
             raise Ness6RestSSLException(
                 "{}: SSL Error '{}' for %s.".format(url, ssl_error))
@@ -579,10 +580,21 @@ class Scanner(object):
         builds the entire "plugins" object, and can be very large for some
         families, such as "AIX", as it needs to make an entry for each plugin in
         the family to set the status.
+
+        NOTE about usage: the `plugins` argument is in fact ignored.
+          Instead this method relies on self.plugins, which has
+          (hopefully) been set by the self.plugins_info() method.
         '''
         families = {"plugins": {}}
         updates = {}
         family_id = {}
+
+        if plugins:
+            logger.warning("Plugins %s provided, but will be ignored",
+                           plugins)
+        if len(self.plugins) > 20:
+            logger.warning("Tiemout likely due to %d plugins.  Reduce to 20.",
+                           len(self.plugins))
 
         self.action(action="editor/policy/" + str(self.policy_id), method="GET")
 
@@ -590,9 +602,19 @@ class Scanner(object):
         for item in self.res["plugins"]["families"]:
             families["plugins"].update({item: {"status": "disabled"}})
 
+        num_families = len(self.res["plugins"]["families"])
+        logger.debug("Disabling %d families ...", num_families)
+        start_time = time.time()
         # print(json.dumps(families, sort_keys=False, indent=4))
+        # The delay in this call seems to be based on the number of
+        # plugins enabled in the *previous* call.  Thus, we have no
+        # control over it, but from experimentation it seems that a
+        # timeout of 60.0 seconds should be sufficient.
         self.action(action="policies/" + str(self.policy_id),
-                    method="PUT", extra=families)
+                    method="PUT", extra=families, timeout=60.0)
+        elapsed_time = time.time() - start_time
+        logger.debug("Disabled  %d families in %.1f s",
+                     num_families, elapsed_time)
 
         # Query the search interface to get the family information for the
         # plugin
@@ -637,8 +659,17 @@ class Scanner(object):
                 families["plugins"][fam]["individual"].update({str(pid):
                                                                "enabled"})
 
+        # Enable the individual plugins we're interested in
+        num_plugins = len(self.plugins)
+        logger.debug("Enabling %d plugins", num_plugins)
+        start_time = time.time()
         self.action(action="policies/" + str(self.policy_id),
-                    method="PUT", extra=families)
+                    method="PUT", extra=families, timeout=60.0)
+        elapsed_time = time.time() - start_time
+        logger.debug("Enabled  %d plugins in %.1f s, %.2f s/plugin",
+                     num_plugins, elapsed_time,
+                     elapsed_time/num_plugins if num_plugins else 0)
+
 
 ################################################################################
     def scan_add(self, targets, template="custom", name="", start=""):
@@ -751,8 +782,20 @@ class Scanner(object):
         '''
         Start the scan and save the UUID to query the status
         '''
+        num_plugins = len(self.plugins)
+        if num_plugins > 20:
+            logger.warning("Tiemout likely due to %d plugins.  Reduce to 20.",
+                           num_plugins)
+        logger.debug("Starting scan with %d plugins ...", num_plugins)
+        start_time = time.time()
+        # A timeout of 90 seconds seems to be OK provided that the
+        # number of plugins is less than 20.
         self.action(action="scans/" + str(self.scan_id) + "/launch",
-                    method="POST")
+                    method="POST", timeout=90.0)
+        elapsed_time = time.time() - start_time
+        logger.debug("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
+                     num_plugins, elapsed_time,
+                     elapsed_time/num_plugins if num_plugins else 0)
 
         self.scan_uuid = self.res["scan_uuid"]
 
