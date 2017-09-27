@@ -218,7 +218,7 @@ class Scanner(object):
         try:
             req = requests.request(method, url, data=payload, files=files,
                                    verify=verify, headers=headers,
-                                   timeout=60.0)
+                                   timeout=120.0)
         except requests.exceptions.SSLError as ssl_error:
             raise Ness6RestSSLException(
                 "{}: SSL Error '{}' for %s.".format(url, ssl_error))
@@ -598,8 +598,8 @@ class Scanner(object):
         self.action(action="policies/" + str(self.policy_id),
                     method="PUT", extra=families)
         elapsed_time = time.time() - start_time
-        logger.info("Disabled  %d families in %.1f s, %.2f s/family",
-                    num_families, elapsed_time, elapsed_time/num_families)
+        logger.info("Disabled  %d families in %.1f s",
+                    num_families, elapsed_time)
 
         logger.info("Get family info for plugins")
         # Query the search interface to get the family information for the
@@ -768,8 +768,14 @@ class Scanner(object):
         '''
         Start the scan and save the UUID to query the status
         '''
+        logger.info("Starting scan with %d plugins ...", len(self.plugins))
+        start_time = time.time()
         self.action(action="scans/" + str(self.scan_id) + "/launch",
                     method="POST")
+        elapsed_time = time.time() - start_time
+        logger.info("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
+                    len(self.plugins), elapsed_time,
+                    elapsed_time/len(self.plugins))
 
         self.scan_uuid = self.res["scan_uuid"]
 
