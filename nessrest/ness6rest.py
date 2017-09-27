@@ -772,10 +772,10 @@ class Scanner(object):
         '''
         logger.info("Starting scan with %d plugins ...", len(self.plugins))
         start_time = time.time()
-        # A timeout of 60 seconds seems to be OK provided that the
+        # A timeout of 90 seconds seems to be OK provided that the
         # number of plugins is less than 20.
         self.action(action="scans/" + str(self.scan_id) + "/launch",
-                    method="POST", timeout=60.0)
+                    method="POST", timeout=90.0)
         elapsed_time = time.time() - start_time
         logger.info("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
                     len(self.plugins), elapsed_time,
