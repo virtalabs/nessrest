@@ -592,7 +592,7 @@ class Scanner(object):
             families["plugins"].update({item: {"status": "disabled"}})
 
         num_families = len(self.res["plugins"]["families"])
-        logger.info("Disabling %d families ...", num_families)
+        logger.debug("Disabling %d families ...", num_families)
         start_time = time.time()
         # print(json.dumps(families, sort_keys=False, indent=4))
         # The delay in this call seems to be based on the number of
@@ -602,8 +602,8 @@ class Scanner(object):
         self.action(action="policies/" + str(self.policy_id),
                     method="PUT", extra=families, timeout=60.0)
         elapsed_time = time.time() - start_time
-        logger.info("Disabled  %d families in %.1f s",
-                    num_families, elapsed_time)
+        logger.debug("Disabled  %d families in %.1f s",
+                     num_families, elapsed_time)
 
         # Query the search interface to get the family information for the
         # plugin
@@ -649,14 +649,14 @@ class Scanner(object):
                                                                "enabled"})
 
         # Enable the individual plugins we're interested in
-        logger.info("Enabling %d plugins", len(self.plugins))
+        logger.debug("Enabling %d plugins", len(self.plugins))
         start_time = time.time()
         self.action(action="policies/" + str(self.policy_id),
                     method="PUT", extra=families, timeout=60.0)
         elapsed_time = time.time() - start_time
-        logger.info("Enabled  %d plugins in %.1f s, %.2f s/plugin",
-                    len(self.plugins), elapsed_time,
-                    elapsed_time/len(self.plugins))
+        logger.debug("Enabled  %d plugins in %.1f s, %.2f s/plugin",
+                     len(self.plugins), elapsed_time,
+                     elapsed_time/len(self.plugins))
 
 
 ################################################################################
@@ -770,16 +770,16 @@ class Scanner(object):
         '''
         Start the scan and save the UUID to query the status
         '''
-        logger.info("Starting scan with %d plugins ...", len(self.plugins))
+        logger.debug("Starting scan with %d plugins ...", len(self.plugins))
         start_time = time.time()
         # A timeout of 90 seconds seems to be OK provided that the
         # number of plugins is less than 20.
         self.action(action="scans/" + str(self.scan_id) + "/launch",
                     method="POST", timeout=90.0)
         elapsed_time = time.time() - start_time
-        logger.info("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
-                    len(self.plugins), elapsed_time,
-                    elapsed_time/len(self.plugins))
+        logger.debug("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
+                     len(self.plugins), elapsed_time,
+                     elapsed_time/len(self.plugins))
 
         self.scan_uuid = self.res["scan_uuid"]
 
