@@ -580,10 +580,21 @@ class Scanner(object):
         builds the entire "plugins" object, and can be very large for some
         families, such as "AIX", as it needs to make an entry for each plugin in
         the family to set the status.
+
+        NOTE about usage: the `plugins` argument is in fact ignored.
+          Instead this method relies on self.plugins, which has
+          (hopefully) been set by the self.plugins_info() method.
         '''
         families = {"plugins": {}}
         updates = {}
         family_id = {}
+
+        if plugins:
+            logger.warning("Plugins %s provided, but will be ignored",
+                           plugins)
+        if len(self.plugins) > 20:
+            logger.warning("Tiemout likely due to %d plugins.  Reduce to 20.",
+                           len(self.plugins))
 
         self.action(action="editor/policy/" + str(self.policy_id), method="GET")
 
@@ -770,6 +781,9 @@ class Scanner(object):
         '''
         Start the scan and save the UUID to query the status
         '''
+        if len(self.plugins) > 20:
+            logger.warning("Tiemout likely due to %d plugins.  Reduce to 20.",
+                           len(self.plugins))
         logger.debug("Starting scan with %d plugins ...", len(self.plugins))
         start_time = time.time()
         # A timeout of 90 seconds seems to be OK provided that the
