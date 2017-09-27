@@ -218,7 +218,7 @@ class Scanner(object):
         try:
             req = requests.request(method, url, data=payload, files=files,
                                    verify=verify, headers=headers,
-                                   timeout=5.0)
+                                   timeout=60.0)
         except requests.exceptions.SSLError as ssl_error:
             raise Ness6RestSSLException(
                 "{}: SSL Error '{}' for %s.".format(url, ssl_error))
@@ -584,16 +584,24 @@ class Scanner(object):
         updates = {}
         family_id = {}
 
+        logger.info("Get policies")
         self.action(action="editor/policy/" + str(self.policy_id), method="GET")
 
         # Build an object to disable all plugins at the family level.
+        num_families = len(self.res["plugins"]["families"])
         for item in self.res["plugins"]["families"]:
             families["plugins"].update({item: {"status": "disabled"}})
 
+        logger.info("Disabling %d families ...", num_families)
+        start_time = time.time()
         # print(json.dumps(families, sort_keys=False, indent=4))
         self.action(action="policies/" + str(self.policy_id),
                     method="PUT", extra=families)
+        elapsed_time = time.time() - start_time
+        logger.info("Disabled  %d families in %.1f s, %.2f s/family",
+                    num_families, elapsed_time, elapsed_time/num_families)
 
+        logger.info("Get family info for plugins")
         # Query the search interface to get the family information for the
         # plugin
         for plugin in self.plugins.keys():
@@ -615,6 +623,7 @@ class Scanner(object):
                 family_id.update({family:
                                   str(self.res["families"][family]["id"])})
 
+        logger.info("Get plugin families")
         # Build the stub for a family that has individual plugins enabled
         for fam, fam_id in family_id.items():
             families["plugins"][fam].update({"status": "mixed"})
@@ -637,8 +646,16 @@ class Scanner(object):
                 families["plugins"][fam]["individual"].update({str(pid):
                                                                "enabled"})
 
+        # Enable the individual plugins we're interested in
+        logger.info("Enabling %d plugins", len(self.plugins))
+        start_time = time.time()
         self.action(action="policies/" + str(self.policy_id),
                     method="PUT", extra=families)
+        elapsed_time = time.time() - start_time
+        logger.info("Enabled  %d plugins in %.1f s, %.2f s/plugin",
+                    len(self.plugins), elapsed_time,
+                    elapsed_time/len(self.plugins))
+
 
 ################################################################################
     def scan_add(self, targets, template="custom", name="", start=""):
