@@ -660,14 +660,15 @@ class Scanner(object):
                                                                "enabled"})
 
         # Enable the individual plugins we're interested in
-        logger.debug("Enabling %d plugins", len(self.plugins))
+        num_plugins = len(self.plugins)
+        logger.debug("Enabling %d plugins", num_plugins)
         start_time = time.time()
         self.action(action="policies/" + str(self.policy_id),
                     method="PUT", extra=families, timeout=60.0)
         elapsed_time = time.time() - start_time
         logger.debug("Enabled  %d plugins in %.1f s, %.2f s/plugin",
-                     len(self.plugins), elapsed_time,
-                     elapsed_time/len(self.plugins))
+                     num_plugins, elapsed_time,
+                     elapsed_time/num_plugins if num_plugins else 0)
 
 
 ################################################################################
@@ -781,10 +782,11 @@ class Scanner(object):
         '''
         Start the scan and save the UUID to query the status
         '''
-        if len(self.plugins) > 20:
+        num_plugins = len(self.plugins)
+        if num_plugins > 20:
             logger.warning("Tiemout likely due to %d plugins.  Reduce to 20.",
-                           len(self.plugins))
-        logger.debug("Starting scan with %d plugins ...", len(self.plugins))
+                           num_plugins)
+        logger.debug("Starting scan with %d plugins ...", num_plugins)
         start_time = time.time()
         # A timeout of 90 seconds seems to be OK provided that the
         # number of plugins is less than 20.
@@ -792,8 +794,8 @@ class Scanner(object):
                     method="POST", timeout=90.0)
         elapsed_time = time.time() - start_time
         logger.debug("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
-                     len(self.plugins), elapsed_time,
-                     elapsed_time/len(self.plugins))
+                     num_plugins, elapsed_time,
+                     elapsed_time/num_plugins if num_plugins else 0)
 
         self.scan_uuid = self.res["scan_uuid"]
 
