@@ -173,7 +173,8 @@ class Scanner(object):
         except:
             pass
 ################################################################################
-    def action(self, action, method, extra={}, files={}, json_req=True, download=False, private=False, retry=True):
+    def action(self, action, method, extra={}, files={}, json_req=True,
+               download=False, private=False, retry=True, timeout=5.0):
         '''
         Generic actions for REST interface. The json_req may be unneeded, but
         the plugin searching functionality does not use a JSON-esque request.
@@ -218,7 +219,7 @@ class Scanner(object):
         try:
             req = requests.request(method, url, data=payload, files=files,
                                    verify=verify, headers=headers,
-                                   timeout=120.0)
+                                   timeout=timeout)
         except requests.exceptions.SSLError as ssl_error:
             raise Ness6RestSSLException(
                 "{}: SSL Error '{}' for %s.".format(url, ssl_error))
@@ -595,8 +596,12 @@ class Scanner(object):
         logger.info("Disabling %d families ...", num_families)
         start_time = time.time()
         # print(json.dumps(families, sort_keys=False, indent=4))
+        # The delay in this call seems to be based on the number of
+        # plugins enabled in the *previous* call.  Thus, we have no
+        # control over it, but from experimentation it seems that a
+        # timeout of 60.0 seconds should be sufficient.
         self.action(action="policies/" + str(self.policy_id),
-                    method="PUT", extra=families)
+                    method="PUT", extra=families, timeout=60.0)
         elapsed_time = time.time() - start_time
         logger.info("Disabled  %d families in %.1f s",
                     num_families, elapsed_time)
@@ -650,7 +655,7 @@ class Scanner(object):
         logger.info("Enabling %d plugins", len(self.plugins))
         start_time = time.time()
         self.action(action="policies/" + str(self.policy_id),
-                    method="PUT", extra=families)
+                    method="PUT", extra=families, timeout=60.0)
         elapsed_time = time.time() - start_time
         logger.info("Enabled  %d plugins in %.1f s, %.2f s/plugin",
                     len(self.plugins), elapsed_time,
@@ -770,8 +775,10 @@ class Scanner(object):
         '''
         logger.info("Starting scan with %d plugins ...", len(self.plugins))
         start_time = time.time()
+        # A timeout of 60 seconds seems to be OK provided that the
+        # number of plugins is less than 20.
         self.action(action="scans/" + str(self.scan_id) + "/launch",
-                    method="POST")
+                    method="POST", timeout=60.0)
         elapsed_time = time.time() - start_time
         logger.info("Started  scan with %d plugins in %.1f s, %.2f s/plugin",
                     len(self.plugins), elapsed_time,
